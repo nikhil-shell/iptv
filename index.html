@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="theme-color" content="#101210">
+    <meta name="description" content="A simple browser-based M3U playlist player.">
+    <title>Tuner - M3U Player</title>
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/hls.js@1"></script>
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <a class="brand" href="./" aria-label="Tuner home">
+        <span class="brand-mark" aria-hidden="true"><i></i><i></i><i></i></span>
+        <span>TUNER</span>
+      </a>
+      <form class="url-form" id="playlist-form">
+        <label class="sr-only" for="playlist-url">Playlist URL</label>
+        <span class="url-icon" aria-hidden="true">↗</span>
+        <input id="playlist-url" type="url" placeholder="Paste an M3U playlist URL" autocomplete="url">
+        <button class="load-button" type="submit">Load URL</button>
+      </form>
+      <label class="upload-button" for="playlist-file">
+        <span aria-hidden="true">＋</span> Open file
+        <input id="playlist-file" type="file" accept=".m3u,.m3u8,audio/x-mpegurl,application/vnd.apple.mpegurl">
+      </label>
+    </header>
+
+    <div class="workspace">
+      <aside class="library" aria-label="Playlist channels">
+        <div class="library-heading">
+          <div>
+            <p class="eyebrow">YOUR LIBRARY</p>
+            <h1>Channels <span id="channel-count">0</span></h1>
+          </div>
+          <span class="live-indicator" title="Ready to play" aria-label="Ready to play"></span>
+        </div>
+        <label class="search-box">
+          <span aria-hidden="true">⌕</span>
+          <input id="channel-search" type="search" placeholder="Find a channel" autocomplete="off">
+          <kbd>/</kbd>
+        </label>
+        <label class="filter-label" for="group-filter">COLLECTION</label>
+        <select id="group-filter" aria-label="Filter by collection">
+          <option value="all">All channels</option>
+        </select>
+        <div class="playlist-label" id="playlist-label">NO PLAYLIST LOADED</div>
+        <div class="channel-list" id="channel-list" role="listbox" aria-label="Channels">
+          <div class="library-empty" id="library-empty">
+            <span class="empty-glyph" aria-hidden="true">▤</span>
+            <p>Your channels will appear here.</p>
+            <span>Open a playlist to get started.</span>
+          </div>
+        </div>
+        <div class="library-footer"><span class="footer-dot"></span> PLAYLISTS STAY IN YOUR BROWSER</div>
+      </aside>
+
+      <main class="content">
+        <div class="viewer-heading">
+          <div class="now-playing">
+            <p class="eyebrow">NOW PLAYING</p>
+            <h2 id="current-title">Choose a channel</h2>
+          </div>
+          <div class="stream-badge"><span></span> LIVE PLAYER</div>
+        </div>
+
+        <section class="player-frame" aria-label="Video player">
+          <video id="video" controls playsinline preload="metadata"></video>
+          <div class="player-placeholder" id="player-placeholder">
+            <div class="tuning-mark" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span></div>
+            <p class="placeholder-overline">YOUR SCREEN IS READY</p>
+            <h3>Pick a channel.<br><em>Settle in.</em></h3>
+            <p class="placeholder-copy">Load an M3U playlist to start watching.</p>
+          </div>
+          <div class="player-error" id="player-error" role="status" hidden></div>
+        </section>
+
+        <div class="player-details">
+          <div class="channel-art" id="channel-art" aria-hidden="true">T</div>
+          <div class="channel-meta">
+            <span class="eyebrow" id="current-group">TUNER PLAYER</span>
+            <p id="current-description">Your playlist is loaded locally and is never uploaded.</p>
+          </div>
+          <div class="stream-state" id="stream-state"><span></span> STANDING BY</div>
+        </div>
+        <p class="notice" id="notice" role="status" hidden></p>
+      </main>
+    </div>
+  </body>
+</html>
