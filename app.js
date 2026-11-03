@@ -14,6 +14,7 @@ const playerPlaceholder = document.querySelector('#player-placeholder');
 const playerError = document.querySelector('#player-error');
 const streamState = document.querySelector('#stream-state');
 const notice = document.querySelector('#notice');
+const clickToast = document.querySelector('#click-toast');
 const video = document.querySelector('#video');
 
 let channels = [];
@@ -22,6 +23,8 @@ let hlsPlayer = null;
 let sourceObjectUrl = null;
 let playlistLoadId = 0;
 let channelRenderId = 0;
+let selectSportOnFirstLoad = true;
+let clickToastTimer;
 
 function yieldToBrowser() {
   return new Promise((resolve) => setTimeout(resolve, 0));
@@ -94,6 +97,11 @@ async function loadPlaylist(text, name, baseUrl = '', loadId = ++playlistLoadId)
   channelCount.textContent = String(channels.length);
   channelSearch.value = '';
   buildGroupFilter();
+  if (selectSportOnFirstLoad) {
+    const sportOption = [...groupFilter.options].find((option) => option.value.toLocaleLowerCase().startsWith('sport'));
+    if (sportOption) groupFilter.value = sportOption.value;
+    selectSportOnFirstLoad = false;
+  }
   await renderChannels();
   currentTitle.textContent = 'Choose a channel';
   currentGroup.textContent = 'TUNER PLAYER';
@@ -309,3 +317,22 @@ document.addEventListener('keydown', (event) => {
     channelSearch.focus();
   }
 });
+
+document.addEventListener('click', (event) => {
+  if (event.target.closest('#click-toast')) return;
+  const clicked = event.target.closest('button, a, input, select, label, video, [role="option"]') || event.target;
+  const label = clicked.getAttribute('aria-label')
+    || clicked.innerText?.trim().replace(/\s+/g, ' ')
+    || clicked.getAttribute('placeholder')
+    || clicked.tagName.toLocaleLowerCase();
+  clickToast.textContent = `Clicked: ${label.slice(0, 60)}`;
+  clickToast.hidden = false;
+  clickToast.classList.add('is-visible');
+  clearTimeout(clickToastTimer);
+  clickToastTimer = setTimeout(() => {
+    clickToast.classList.remove('is-visible');
+    clickToast.hidden = true;
+  }, 1800);
+});
+
+playlistForm.requestSubmit();

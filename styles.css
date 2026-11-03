@@ -186,6 +186,9 @@ kbd { padding: 1px 5px; color: #828980; border: 1px solid #343934; border-radius
 .notice { margin: 14px 0 0; padding: 11px 13px; color: #e8c19f; background: #211b15; border-left: 2px solid var(--orange); font-size: 12px; line-height: 1.5; }
 .notice.is-loading { color: #d7dfca; background: #192016; border-left-color: var(--lime); }
 .notice[hidden] { display: none; }
+.click-toast { position: fixed; z-index: 20; right: 22px; bottom: 22px; max-width: min(360px, calc(100vw - 32px)); padding: 11px 15px; color: var(--text); background: #252b21; border: 1px solid #49513e; border-left: 3px solid var(--lime); border-radius: 4px; box-shadow: 0 8px 26px #0008; font-size: 12px; opacity: 0; transform: translateY(8px); transition: opacity 140ms ease, transform 140ms ease; pointer-events: none; }
+.click-toast.is-visible { opacity: 1; transform: translateY(0); }
+.click-toast[hidden] { display: none; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
 @media (max-width: 760px) {

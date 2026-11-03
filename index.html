@@ -19,7 +19,7 @@
       <form class="url-form" id="playlist-form">
         <label class="sr-only" for="playlist-url">Playlist URL</label>
         <span class="url-icon" aria-hidden="true">↗</span>
-        <input id="playlist-url" type="url" placeholder="Paste an M3U playlist URL" autocomplete="url">
+        <input id="playlist-url" type="url" value="https://iptv-org.github.io/iptv/index.m3u" placeholder="Paste an M3U playlist URL" autocomplete="url">
         <button class="load-button" type="submit">Load URL</button>
       </form>
       <label class="upload-button" for="playlist-file">
@@ -88,5 +88,6 @@
         <p class="notice" id="notice" role="status" hidden></p>
       </main>
     </div>
+    <div class="click-toast" id="click-toast" role="status" aria-live="polite" aria-atomic="true" hidden></div>
   </body>
 </html>
