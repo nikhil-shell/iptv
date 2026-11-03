@@ -20,15 +20,27 @@ let channels = [];
 let selectedChannel = null;
 let hlsPlayer = null;
 let sourceObjectUrl = null;
+let playlistLoadId = 0;
+let channelRenderId = 0;
 
-function parsePlaylist(text, baseUrl = '') {
-  const lines = text.replace(/^\uFEFF/, '').split(/\r?\n/);
+function yieldToBrowser() {
+  return new Promise((resolve) => setTimeout(resolve, 0));
+}
+
+async function parsePlaylist(text, baseUrl = '') {
+  const content = text.replace(/^\uFEFF/, '');
   const parsed = [];
   let metadata = null;
+  let lineStart = 0;
+  let lineNumber = 0;
 
-  for (const rawLine of lines) {
+  while (lineStart < content.length) {
+    const lineEnd = content.indexOf('\n', lineStart);
+    const nextLineStart = lineEnd === -1 ? content.length : lineEnd + 1;
+    const rawLine = content.slice(lineStart, lineEnd === -1 ? content.length : lineEnd);
+    lineStart = nextLineStart;
+    lineNumber += 1;
     const line = rawLine.trim();
-    if (!line) continue;
 
     if (line.startsWith('#EXTINF:')) {
       const comma = line.indexOf(',');
@@ -41,33 +53,35 @@ function parsePlaylist(text, baseUrl = '') {
         group: attributes['group-title'] || 'Other',
         logo: attributes['tvg-logo'] || '',
       };
-      continue;
-    }
-
-    if (line.startsWith('#') || !metadata) continue;
-
-    let url = line;
-    if (baseUrl) {
-      try {
-        url = new URL(line, baseUrl).href;
-      } catch {
-        // Keep the original stream URL if it is not a valid relative URL.
+    } else if (line && !line.startsWith('#') && metadata) {
+      let url = line;
+      if (baseUrl) {
+        try {
+          url = new URL(line, baseUrl).href;
+        } catch {
+          // Keep the original stream URL if it is not a valid relative URL.
+        }
       }
+      parsed.push({ ...metadata, url });
+      metadata = null;
     }
-    parsed.push({ ...metadata, url });
-    metadata = null;
+
+    if (lineNumber % 500 === 0) await yieldToBrowser();
   }
 
   return parsed;
 }
 
-function showNotice(message = '') {
+function showNotice(message = '', loading = false) {
   notice.textContent = message;
   notice.hidden = !message;
+  notice.classList.toggle('is-loading', loading);
 }
 
-function loadPlaylist(text, name, baseUrl = '') {
-  const result = parsePlaylist(text, baseUrl);
+async function loadPlaylist(text, name, baseUrl = '', loadId = ++playlistLoadId) {
+  showNotice('Processing playlist...', true);
+  const result = await parsePlaylist(text, baseUrl);
+  if (loadId !== playlistLoadId) return;
   if (!result.length) {
     showNotice('No playable channels were found. Check that the playlist contains #EXTINF entries followed by stream URLs.');
     return;
@@ -80,7 +94,7 @@ function loadPlaylist(text, name, baseUrl = '') {
   channelCount.textContent = String(channels.length);
   channelSearch.value = '';
   buildGroupFilter();
-  renderChannels();
+  await renderChannels();
   currentTitle.textContent = 'Choose a channel';
   currentGroup.textContent = 'TUNER PLAYER';
   currentDescription.textContent = 'Your playlist is loaded locally and is never uploaded.';
@@ -100,13 +114,22 @@ function buildGroupFilter() {
   groupFilter.value = groups.includes(selectedGroup) ? selectedGroup : 'all';
 }
 
-function renderChannels() {
+async function renderChannels() {
+  const renderId = ++channelRenderId;
   const query = channelSearch.value.trim().toLocaleLowerCase();
   const group = groupFilter.value;
-  const visible = channels
-    .map((channel, index) => ({ channel, index }))
-    .filter(({ channel }) => (group === 'all' || channel.group === group)
-      && channel.name.toLocaleLowerCase().includes(query));
+  const visible = [];
+  for (let index = 0; index < channels.length; index += 1) {
+    const channel = channels[index];
+    if ((group === 'all' || channel.group === group)
+      && channel.name.toLocaleLowerCase().includes(query)) {
+      visible.push({ channel, index });
+    }
+    if (index > 0 && index % 500 === 0) {
+      await yieldToBrowser();
+      if (renderId !== channelRenderId) return;
+    }
+  }
 
   channelList.replaceChildren();
   if (!visible.length) {
@@ -117,39 +140,43 @@ function renderChannels() {
     return;
   }
 
-  const fragment = document.createDocumentFragment();
-  for (const { channel, index } of visible) {
-    const button = document.createElement('button');
-    button.className = 'channel-item';
-    button.type = 'button';
-    button.setAttribute('role', 'option');
-    button.setAttribute('aria-selected', String(selectedChannel === index));
-    button.addEventListener('click', () => playChannel(index));
+  for (let start = 0; start < visible.length; start += 100) {
+    if (renderId !== channelRenderId) return;
+    const fragment = document.createDocumentFragment();
+    for (const { channel, index } of visible.slice(start, start + 100)) {
+      const button = document.createElement('button');
+      button.className = 'channel-item';
+      button.type = 'button';
+      button.setAttribute('role', 'option');
+      button.setAttribute('aria-selected', String(selectedChannel === index));
+      button.addEventListener('click', () => playChannel(index));
 
-    const logo = document.createElement('span');
-    logo.className = 'channel-logo';
-    if (channel.logo) {
-      const image = document.createElement('img');
-      image.src = channel.logo;
-      image.alt = '';
-      image.loading = 'lazy';
-      image.addEventListener('error', () => { logo.textContent = initials(channel.name); });
-      logo.append(image);
-    } else {
-      logo.textContent = initials(channel.name);
+      const logo = document.createElement('span');
+      logo.className = 'channel-logo';
+      if (channel.logo) {
+        const image = document.createElement('img');
+        image.src = channel.logo;
+        image.alt = '';
+        image.loading = 'lazy';
+        image.addEventListener('error', () => { logo.textContent = initials(channel.name); });
+        logo.append(image);
+      } else {
+        logo.textContent = initials(channel.name);
+      }
+
+      const copy = document.createElement('span');
+      copy.className = 'channel-copy';
+      const name = document.createElement('strong');
+      name.textContent = channel.name;
+      const groupName = document.createElement('span');
+      groupName.textContent = channel.group;
+      copy.append(name, groupName);
+      button.append(logo, copy);
+      fragment.append(button);
     }
-
-    const copy = document.createElement('span');
-    copy.className = 'channel-copy';
-    const name = document.createElement('strong');
-    name.textContent = channel.name;
-    const groupName = document.createElement('span');
-    groupName.textContent = channel.group;
-    copy.append(name, groupName);
-    button.append(logo, copy);
-    fragment.append(button);
+    channelList.append(fragment);
+    if (start + 100 < visible.length) await yieldToBrowser();
   }
-  channelList.append(fragment);
 }
 
 function initials(name) {
@@ -243,25 +270,33 @@ playlistForm.addEventListener('submit', async (event) => {
   event.preventDefault();
   const url = playlistUrl.value.trim();
   if (!url) return;
-  showNotice('');
+  const loadId = ++playlistLoadId;
+  showNotice('Loading playlist...', true);
   try {
     const response = await fetch(url);
     if (!response.ok) throw new Error(`The server returned ${response.status}.`);
-    loadPlaylist(await response.text(), new URL(url).pathname.split('/').pop() || 'Remote playlist', url);
+    const text = await response.text();
+    if (loadId !== playlistLoadId) return;
+    await loadPlaylist(text, new URL(url).pathname.split('/').pop() || 'Remote playlist', url, loadId);
   } catch (error) {
-    showNotice(`Could not load this playlist. ${error.message || 'The server may block browser access (CORS). Try opening the M3U file instead.'}`);
+    if (loadId === playlistLoadId) {
+      showNotice(`Could not load this playlist. ${error.message || 'The server may block browser access (CORS). Try opening the M3U file instead.'}`);
+    }
   }
 });
 
 playlistFile.addEventListener('change', async () => {
   const file = playlistFile.files?.[0];
   if (!file) return;
+  const loadId = ++playlistLoadId;
+  showNotice('Reading playlist...', true);
   try {
     if (sourceObjectUrl) URL.revokeObjectURL(sourceObjectUrl);
     sourceObjectUrl = URL.createObjectURL(file);
-    loadPlaylist(await file.text(), file.name);
+    const text = await file.text();
+    if (loadId === playlistLoadId) await loadPlaylist(text, file.name, '', loadId);
   } catch {
-    showNotice('Could not read that file. Please choose a valid M3U playlist.');
+    if (loadId === playlistLoadId) showNotice('Could not read that file. Please choose a valid M3U playlist.');
   }
   playlistFile.value = '';
 });
